@@ -19,7 +19,3 @@ python3 -m http.server 8000
 - **Restart:** `R`
 
 Touch controls appear automatically on touch-capable devices.
-
-## Details
-
-Full mechanics, constants, and the reachability guarantee are in [SPEC.md](SPEC.md).

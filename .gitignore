@@ -1,0 +1,9 @@
+# dependencies
+node_modules/
+
+# test / build output
+coverage/
+
+# editor / OS
+.DS_Store
+*.log

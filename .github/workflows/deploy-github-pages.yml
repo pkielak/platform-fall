@@ -1,0 +1,55 @@
+# Deploy the static game as a GitHub *project* page:
+# https://<username>.github.io/platform-fall/
+#
+# One-time setup:
+#   1. Push this file to the default branch (main).
+#   2. In the GitHub repo: Settings -> Pages -> Build and deployment:
+#        Source: GitHub Actions
+#   3. Push (or re-run the workflow) to publish.
+
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Permissions required for the new Pages deployment actions.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one concurrent deployment; latest commits queue.
+concurrency:
+  group: pages
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Only the files the browser actually needs.
+          path: |
+            index.html
+            style.css
+            manifest.webmanifest
+            sw.js
+            js
+            icons
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

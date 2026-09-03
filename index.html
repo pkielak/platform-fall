@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Platform Fall</title>
+<meta name="description" content="A dice-driven vertical platformer. Jump between platforms, collect them, and complete bar rows.">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Platform Fall">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="game-container">
+  <div id="screen-bezel">
+    <div class="bezel-label">PLATFORM FALL</div>
+    <div id="screen">
+      <canvas id="game"></canvas>
+      <div id="boot">
+        <div id="boot-text">PLATFORM FALL</div>
+        <div id="boot-bar"><span></span></div>
+      </div>
+      <div id="hud">
+        <div id="power">
+          <span id="power-label">power</span>
+          <div id="power-cells">
+            <span class="p-cell"></span>
+            <span class="p-cell"></span>
+            <span class="p-cell"></span>
+            <span class="p-cell"></span>
+            <span class="p-cell"></span>
+            <span class="p-cell"></span>
+          </div>
+        </div>
+        <div id="completions">completions: 0</div>
+        <div id="altitude">altitude: 0m</div>
+        <div id="hints">WASD / Arrows to move &middot; Space / Up to jump &middot; R to restart</div>
+        <button id="install-btn">&#11015; Install</button>
+      </div>
+      <div id="death">
+        <h1>GAME OVER</h1>
+        <p id="d-completions"></p>
+        <p id="d-altitude"></p>
+        <p id="d-score"></p>
+        <div id="name-input-row">
+          <input id="name-input" type="text" maxlength="10" placeholder="name"/>
+          <button id="submit-name-btn">OK</button>
+        </div>
+        <div id="leaderboard"></div>
+        <button id="restart-btn">Restart</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="touch-bar">
+  <button id="btn-restart">START</button>
+  <div id="touch-row">
+    <div id="dpad">
+      <button class="d-btn" id="dpad-left">&#9664;</button>
+      <button class="d-btn" id="dpad-right">&#9654;</button>
+    </div>
+    <div id="action-group">
+      <button id="btn-jump">JUMP</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

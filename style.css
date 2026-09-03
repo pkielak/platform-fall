@@ -1,0 +1,266 @@
+/* Platform Fall — styles */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 18%, #3d3d48 0%, #23232b 55%, #14141a 100%);
+    font-family: 'Courier New', monospace;
+  }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+
+  /* ── Console shell (plastic body) ── */
+  #game-container {
+    position: relative;
+    width: 100%;
+    padding: 14px 42px 14px;
+    background:
+      linear-gradient(175deg, rgba(255,255,255,.28), rgba(255,255,255,0) 30%),
+      linear-gradient(170deg, #d8d5c8 0%, #beb9ab 55%, #a19d8f 100%);
+    border: 2px solid #6f6c62;
+    box-shadow:
+      inset 0 3px 4px rgba(255,255,255,.75),
+      inset 0 -6px 12px rgba(0,0,0,.28),
+      inset 5px 0 10px rgba(255,255,255,.25),
+      inset -5px 0 10px rgba(0,0,0,.12),
+      0 30px 70px rgba(0,0,0,.65);
+  }
+
+  /* Screen bezel (dark charcoal surround) — square plate, centered in the plastic */
+  #screen-bezel {
+    width: fit-content;
+    margin: 0 auto;
+    aspect-ratio: 1;
+    padding: 10px 30px 24px;
+    background: linear-gradient(180deg, #4c4c55, #38383f 80%, #32323a);
+    border-radius: 20px 20px 26px 26px;
+    border: 2px solid #232329;
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.65), inset 0 -1px 2px rgba(255,255,255,.12), 0 1px 0 rgba(255,255,255,.35);
+  }
+  .bezel-label {
+    text-align: center; font-size: 12px; font-weight: bold; letter-spacing: 4px;
+    color: #8d8d99; margin-bottom: 10px; text-shadow: 0 1px 1px rgba(0,0,0,.6);
+  }
+
+  /* Screen (LCD) */
+  #screen {
+    position: relative;
+    display: flex; justify-content: center; align-items: flex-start;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1a1a2e;
+    border: 3px solid #0e0e12;
+    box-shadow: inset 0 0 22px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.08);
+  }
+  /* glass sheen + scanlines over the LCD */
+  #screen::after {
+    content: ''; position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    background:
+      linear-gradient(115deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 28%, rgba(255,255,255,0) 46%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.05) 0 2px, rgba(0,0,0,0) 2px 4px);
+  }
+
+  canvas { display: block; }
+  /* Reserve the final canvas size in CSS (same math as CHROME in canvas.js)
+     so the layout is identical before JS runs — no shift when JS sizes it. */
+  #game { width: min(100vw - 54px, 100vh - 230px); aspect-ratio: 1; }
+
+  /* ── Boot cover: hides the screen until the first frame is drawn ── */
+  #boot {
+    position: absolute; inset: 0; z-index: 6;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    background: #1a1a2e;
+    font-family: 'Courier New', monospace; font-weight: bold;
+    color: #d3e4a8; letter-spacing: 4px; text-shadow: 0 0 10px rgba(190,230,130,.45);
+    transition: opacity .4s;
+  }
+  #boot.done { opacity: 0; pointer-events: none; }
+  #boot-text { font-size: 22px; }
+  #boot-bar { width: 40%; height: 10px; border: 2px solid rgba(190,230,130,.4); border-radius: 5px; overflow: hidden; }
+  #boot-bar span {
+    display: block; height: 100%; width: 40%;
+    background: #16c79a; border-radius: 3px;
+    animation: boot-scan 1s ease-in-out infinite alternate;
+  }
+  @keyframes boot-scan { from { transform: translateX(-60%); } to { transform: translateX(160%); } }
+
+  /* ── HUD (LCD monochrome green) ── */
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0; pointer-events: none; z-index: 5;
+    font-family: 'Courier New', monospace; font-weight: bold; color: #d3e4a8;
+    text-shadow: 0 0 8px rgba(190,230,130,.45);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  #completions { position: absolute; top: 12px; right: 14px; font-size: 18px; }
+  #altitude { position: absolute; top: 35px; right: 14px; font-size: 17px; }
+  #power {
+    position: absolute; top: 12px; left: 14px; z-index: 5;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    font-family: 'Courier New', monospace; font-weight: bold;
+    color: #d3e4a8; text-shadow: 0 0 8px rgba(190,230,130,.45);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  #power-label { font-size: 18px; white-space: nowrap; }
+  #power-cells { display: flex; gap: 4px; }
+  .p-cell {
+    width: 16px; height: 18px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 2px;
+  }
+  .p-cell.on { background: #16c79a; }
+  .p-cell.on:last-child { background: #f5a623; }
+  #hints { display: none; }
+  #install-btn {
+    position: absolute; top: 58px; right: 14px; z-index: 6; pointer-events: auto;
+    font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; letter-spacing: 1px;
+    background: #28331c; color: #d3e4a8; border: 2px solid #141c0e; border-radius: 4px;
+    padding: 5px 10px; cursor: pointer; text-shadow: 0 0 6px rgba(190,230,130,.4);
+    box-shadow: 0 3px 0 #141c0e;
+  }
+  #install-btn:hover { background: #33421f; }
+  #install-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #141c0e; }
+
+  /* Game over (on the LCD) */
+  #death {
+    display: none; position: absolute; inset: 0; z-index: 7;
+    background: rgba(12, 16, 7, 0.92); color: #d3e4a8;
+    font-family: 'Courier New', monospace; font-weight: bold;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px;
+    text-shadow: 0 0 10px rgba(190,230,130,.45);
+    overflow-y: auto;
+  }
+  /* flex auto-margin centering: keeps content centered when it fits,
+     scrollable when it overflows (avoids the flex-center clip bug) */
+  #death::before, #death::after {
+    content: ''; flex: auto;
+  }
+  #death h1 { font-size: 40px; letter-spacing: 8px; }
+  #death p { font-size: 16px; letter-spacing: 1px; }
+  #restart-btn {
+    padding: 11px 30px; font-size: 15px; font-weight: bold; letter-spacing: 2px;
+    font-family: 'Courier New', monospace;
+    background: #33421f; color: #e6f2c4; border: 2px solid #141c0e; border-radius: 4px;
+    cursor: pointer; box-shadow: 0 4px 0 #141c0e;
+  }
+  #restart-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #141c0e; }
+
+  /* ── Leaderboard ── */
+  .lb-empty { text-align: center; opacity: 0.5; font-size: 12px; }
+
+  #name-input-row { display: none; gap: 6px; align-items: center; width: 80%; max-width: 320px; }
+  #name-input {
+    flex: 1; min-width: 0; height: 34px; box-sizing: border-box;
+    background: #1a1a2e; color: #d3e4a8; border: 2px solid #141c0e; border-radius: 4px;
+    font-family: 'Courier New', monospace; font-size: 14px; text-align: center;
+  }
+  #submit-name-btn {
+    height: 34px; box-sizing: border-box;
+    background: #33421f; color: #e6f2c4; border: 2px solid #141c0e; border-radius: 4px;
+    padding: 0 14px; font-family: 'Courier New', monospace; font-size: 14px; font-weight: bold;
+    cursor: pointer;
+  }
+
+  #leaderboard {
+    width: 80%; max-width: 320px;
+    background: rgba(0,0,0,0.35); border: 2px solid rgba(190,230,130,0.2);
+    border-radius: 6px; padding: 10px 14px;
+  }
+  #leaderboard h2 {
+    font-size: 14px; letter-spacing: 3px; margin-bottom: 8px; text-align: center;
+    color: #b8d49a;
+  }
+  .lb-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-rank { width: 24px; color: #8a8a96; }
+  .lb-name { flex: 1; color: #d3e4a8; padding-left: 6px; }
+  .lb-score { color: #e94560; font-weight: bold; padding-right: 4px; }
+  .lb-row.highlight { background: rgba(233,69,96,0.15); border-radius: 3px; padding: 3px 4px; }
+  /* ── Mobile touch bar (lower half of the console) ── */
+  #touch-bar {
+    flex: 1; width: 100%; min-height: 130px;
+    background: linear-gradient(180deg, #bdb9ab 0%, #a8a496 40%, #948f81 100%);
+    border-left: 2px solid #6f6c62; border-right: 2px solid #6f6c62; border-bottom: 2px solid #6f6c62;
+    padding: 14px 18px 18px;
+    display: flex; flex-direction: column; justify-content: center; gap: 14px;
+    box-shadow: inset 0 3px 6px rgba(0,0,0,.18), inset 0 -4px 8px rgba(0,0,0,.2);
+  }
+  #touch-row { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 88px; }
+  #dpad { display: flex; gap: 10px; }
+  .d-btn {
+    width: 60px; height: 60px; border-radius: 12px;
+    background: linear-gradient(180deg, #4b4b54, #2b2b31);
+    border: 2px solid #1c1c21;
+    color: #9a9aa6; font-size: 22px; font-weight: bold;
+    font-family: 'Courier New', monospace;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 5px 0 #16161a, 0 7px 8px rgba(0,0,0,.35), inset 0 2px 2px rgba(255,255,255,.25);
+  }
+  .d-btn:active { transform: translateY(4px); color: #d3e4a8; box-shadow: 0 1px 0 #16161a, inset 0 2px 2px rgba(255,255,255,.15); }
+  #action-group { display: flex; gap: 16px; align-items: center; }
+  #btn-restart {
+    width: 76px; height: 28px; border-radius: 14px;
+    background: linear-gradient(180deg, #55555e, #33333a);
+    border: 1px solid #1e1e23;
+    color: #b9b9c4; font-size: 10px; font-weight: bold; letter-spacing: 2px;
+    font-family: 'Courier New', monospace;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 0 #16161a, inset 0 1px 1px rgba(255,255,255,.3);
+    margin: 0 auto;
+  }
+  #btn-restart:active { transform: translateY(3px); box-shadow: 0 1px 0 #16161a; }
+  #btn-jump {
+    width: 78px; height: 78px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 28%, #c9546a, #8a2438 65%, #6d1a2c);
+    border: 2px solid #4d1220;
+    color: #f4d9de; font-size: 13px; font-weight: 900; letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 6px 0 #4d1220, 0 9px 12px rgba(0,0,0,.4), inset 0 3px 4px rgba(255,255,255,.3);
+  }
+  #btn-jump:active { transform: translateY(5px); box-shadow: 0 1px 0 #4d1220, inset 0 2px 4px rgba(0,0,0,.3); }
+
+  /* ── Mobile layout: console fills the viewport ── */
+  @media (max-width: 1023px) {
+    #game-container {
+      padding: 8px 8px 8px;
+      border-radius: 0;
+      border-left: none; border-right: none; border-bottom: none;
+    }
+    #screen-bezel { border-radius: 8px; padding: 6px 15px 8px; }
+    .bezel-label { font-size: 11px; margin-bottom: 8px; }
+    #screen { border-width: 2px; }
+    #completions { top: 8px; right: 8px; font-size: 13px; }
+    #altitude { top: 27px; right: 8px; font-size: 12px; }
+    #power-label { font-size: 13px; }
+    .p-cell { width: 12px; height: 14px; }
+    #install-btn { top: 48px; right: 8px; font-size: 10px; padding: 4px 8px; }
+    #death { gap: 10px; }
+    #death h1 { font-size: 26px; letter-spacing: 5px; }
+    #death p { font-size: 12px; }
+    #restart-btn { padding: 8px 20px; font-size: 12px; }
+    #touch-bar {
+      border-left: none; border-right: none; border-bottom: none;
+      border-radius: 0;
+      justify-content: center;
+    }
+  }
+
+  /* ── Desktop layout ── */
+  @media (min-width: 1024px) {
+    body { justify-content: center; }
+    #touch-bar { display: none; }
+    #game { width: min(100vw - 154px, 100vh - 100px); }
+    #game-container { border-left: none; border-right: none; }
+    #hints {
+      position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+      font-size: 12px; opacity: 0.75; text-align: center; white-space: nowrap;
+      display: block;
+    }
+  }
+

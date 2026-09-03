@@ -1,0 +1,25 @@
+{
+  "name": "platform-fall",
+  "version": "1.0.0",
+  "description": "A dice-driven, vertically-scrolling platformer that runs in the browser.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "serve": "node serve.js"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.1",
+    "eslint": "^10.9.1",
+    "eslint-plugin-jsdoc": "^64.3.4",
+    "globals": "^17.12.0",
+    "jsdom": "^25.0.0",
+    "vitest": "^4.1.1"
+  },
+  "license": "MIT"
+}

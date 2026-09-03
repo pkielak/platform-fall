@@ -31,17 +31,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Collect site files
+        run: |
+          mkdir dist
+          cp index.html style.css manifest.webmanifest sw.js dist/
+          cp -r js icons dist/
+
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Only the files the browser actually needs.
-          path: |
-            index.html
-            style.css
-            manifest.webmanifest
-            sw.js
-            js
-            icons
+          path: dist
 
   deploy:
     environment:

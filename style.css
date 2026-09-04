@@ -109,7 +109,12 @@
   .p-cell.on { background: #16c79a; }
   .p-cell.on:last-child { background: #f5a623; }
   #hints { display: none; }
+  /* Hidden by default; js/pwa.js reveals it only when the browser fires
+     `beforeinstallprompt` (Chrome/Edge). On other browsers (e.g. Firefox)
+     installation goes through the browser menu, so a dead button would just
+     confuse users. */
   #install-btn {
+    display: none;
     position: absolute; top: 58px; right: 14px; z-index: 6; pointer-events: auto;
     font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; letter-spacing: 1px;
     background: #28331c; color: #d3e4a8; border: 2px solid #141c0e; border-radius: 4px;

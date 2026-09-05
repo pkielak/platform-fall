@@ -59,8 +59,9 @@
   }
 
   canvas { display: block; }
-  /* Reserve the final canvas size in CSS (same math as CHROME in canvas.js)
-     so the layout is identical before JS runs — no shift when JS sizes it. */
+  /* CSS owns the canvas size (square, viewport-derived); js/canvas.js only
+     matches the backing store to clientWidth/clientHeight and never writes
+     inline size styles (that raced the layout and re-fired resize in a loop). */
   #game { width: min(100vw - 54px, 100vh - 230px); aspect-ratio: 1; }
 
   /* ── Boot cover: hides the screen until the first frame is drawn ── */

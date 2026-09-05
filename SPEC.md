@@ -94,7 +94,7 @@ A separate **6-segment power bar** displayed in the HUD (label `dbljmp pwr`, cel
 - **Platforms:** Gradient from `#0f3460` to `#533483` with `#e94560` top edge highlight; pre-rendered per-width sprites (one per width 1..6, blitted 1:1)
 - **Player:** Gradient from `#e94560` to `#ff6b6b`
 - **Walls:** `#e94560` solid lines, 3px wide
-- **Rendering:** DPR-aware canvas, cached gradients, tick-interpolated player/camera positions for high-refresh displays
+- **Rendering:** CSS owns the canvas layout size; JS only matches the backing store (DPR capped at 1.5). Adaptive resolution: sustained sub-60 fps (external load — other tabs, thermal throttling) drops the backing-store scale to 1.0, and it is restored after sustained headroom. Cached gradients/sprites, pure `draw(alpha)` renderer that interpolates all motion (camera, player, falling blocks, block fades) between simulation ticks for high-refresh displays
 
 ## HUD
 - **Top-left:** `dbljmp pwr` power bar

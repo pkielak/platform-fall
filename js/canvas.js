@@ -1,8 +1,6 @@
 // ─── Canvas setup & coordinate helpers ──────────────────────
 import { CANVAS_W, CANVAS_H, UNIT_PX, PLAT_H, PLAYER, BAR_SLOTS, BAR_ROWS, BAR_ROW_H } from './constants.js';
 import { gameCanvas } from './dom.js';
-// camera is read lazily from game state (to avoid using the binding at load time)
-import { state } from './game.js';
 
 /** Main game screen canvas. */
 export const canvas = gameCanvas;
@@ -10,17 +8,6 @@ export const canvas = gameCanvas;
 export const ctx   = canvas.getContext('2d');
 canvas.width  = CANVAS_W;
 canvas.height = CANVAS_H;
-
-/**
- * Fixed chrome (page decorations) sizes per breakpoint, in CSS px.
- * Must match the CSS paddings/borders of the console frame.
- * @type {{mobile: {w: number, h: number, touch: number}, desktop: {w: number, h: number, touch: number}}}
- */
-const CHROME = {
-  // touch = bar natural height (flex:1 fill is cosmetic)
-  mobile:  { w: 54,  h: 60,  touch: 170 },
-  desktop: { w: 154, h: 100, touch: 0   },
-};
 
 /**
  * Pre-rendered static bar layer (background + empty-slot grid) at device
@@ -55,54 +42,92 @@ function buildBarStatic() {
   }
 }
 
-/**
- * Resizes the canvas to the largest square that fits the remaining viewport
- * space, backs it at display resolution (DPR capped at 1.5), and re-renders
- * the static bar layer.
- *
- * The console always fills the viewport width; the screen canvas is sized
- * in CSS px to fit the leftover space.
- * NOTE: never measure flex-stretched elements here (feedback loop).
- */
-let resizeTimer = null;
+/** Backing-store size (device px) last applied to the canvas. */
 let lastW = 0, lastH = 0;
+/** Pending debounced resize timer id. */
+let resizeTimer = null;
+
+// ─── Adaptive resolution ────────────────────────────────────
+// External load (other tabs sharing the GPU/CPU, browser work, thermal
+// throttling) can push frame time past the frame budget even though the
+// game code is fast. When that persists, drop the backing-store scale to
+// buy rendering headroom; when it clears, restore the full quality.
+
+/** Backing-store scale levels, highest first (never above device DPR). */
+const DPR_LEVELS = [1.5, 1.0];
+/** Current level index into DPR_LEVELS (0 = highest quality). */
+let dprLevel = 0;
+/** EMA of recent frame times in ms (0 = not yet primed). */
+let frameEma = 0;
+/** Consecutive frames with the EMA above / below the thresholds. */
+let slowFrames = 0, fastFrames = 0;
+/** Frames since the last level change (change cooldown). */
+let framesSinceChange = 0;
 
 /**
- * Debounced window-resize handler: resizes the canvas backing store and
- * re-renders the static bar layer once the resize storm settles.
+ * Feeds one raw frame time (ms) into the adaptive-scale controller.
+ * Call once per animation frame. Sustained sub-60fps drops the scale
+ * (more headroom); sustained headroom restores it. Stalls over 250 ms
+ * (tab switches) are ignored — they are not a rendering signal.
+ * @param {number} ms - Raw frame time in milliseconds.
  */
-export function resize() {
-  // Debounce: mobile browsers fire 'resize' repeatedly as the address bar
-  // shows/hides (a few times per second). Apply only once it settles so we
-  // don't rebuild the offscreen canvas every few seconds.
-  if (resizeTimer) clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(resize.__apply, 120);
+export function reportFrameTime(ms) {
+  framesSinceChange++;
+  if (ms > 250) return;
+  frameEma = frameEma ? frameEma * 0.9 + ms * 0.1 : ms;
+  if (frameEma > 17)      { slowFrames++; fastFrames = 0; } // sustained <60fps
+  else if (frameEma < 12) { fastFrames++; slowFrames = 0; } // comfortable headroom
+  else                    { slowFrames = 0; fastFrames = 0; }
+  if (framesSinceChange < 120) return; // cooldown: ~2s between changes
+  if (slowFrames > 60 && dprLevel < DPR_LEVELS.length - 1) {
+    dprLevel++; slowFrames = 0; framesSinceChange = 0;
+    applySize();
+  } else if (fastFrames > 300 && dprLevel > 0) {
+    dprLevel--; fastFrames = 0; framesSinceChange = 0;
+    applySize();
+  }
 }
-resize.__apply = function () {
-  const c      = window.innerWidth < 1024 ? CHROME.mobile : CHROME.desktop;
-  const availW = window.innerWidth - c.w;
-  const availH = window.innerHeight - c.touch - c.h;
-  const scale  = Math.max(0.1, Math.min(availW / CANVAS_W, availH / CANVAS_H));
-  const cssW   = CANVAS_W * scale;
-  const cssH   = CANVAS_H * scale;
-  // Back the canvas at display resolution (DPR capped at 1.5) instead of a
-  // fixed 1200x1200, then scale the context so game code stays in logical coords.
-  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-  const pw = Math.max(1, Math.round(cssW * dpr));
-  const ph = Math.max(1, Math.round(cssH * dpr));
+
+/**
+ * Matches the canvas backing store to its CSS-rendered size and re-renders
+ * the static bar layer.
+ *
+ * CSS owns the canvas's layout size (#game in style.css: a square sized from
+ * viewport units); JS only reads that size and matches the backing store.
+ * Never write canvas.style.width/height here: an earlier version did, and
+ * its value (innerHeight-based) disagreed with the CSS value (100vh-based)
+ * on mobile, so every write re-laid-out the page and re-fired 'resize' — a
+ * self-sustaining loop that profiled as ~100 applies/s, each a multi-ms
+ * canvas reallocation (the recurring few-ms hitches). The canvas is not
+ * flex-stretched (explicit min() width + aspect-ratio), so measuring it
+ * cannot feed back.
+ */
+function applySize() {
+  // The scale is min(device DPR, current adaptive level): on DPR-1 displays
+  // both levels are 1, so the controller is a harmless no-op there.
+  const dpr = Math.min(window.devicePixelRatio || 1, DPR_LEVELS[dprLevel]);
+  // clientWidth can be 0 before the first layout; fall back to logical size.
+  const pw = Math.max(1, Math.round((canvas.clientWidth || CANVAS_W) * dpr));
+  const ph = Math.max(1, Math.round((canvas.clientHeight || CANVAS_H) * dpr));
   if (pw === lastW && ph === lastH) return; // nothing changed — skip the rebuild
   lastW = pw; lastH = ph;
-  canvas.style.width  = cssW + 'px';
-  canvas.style.height = cssH + 'px';
   canvas.width  = pw;
   canvas.height = ph;
   ctx.setTransform(pw / CANVAS_W, 0, 0, ph / CANVAS_H, 0, 0);
   buildBarStatic();
-};
-window.addEventListener('resize', resize);
-// Size once on load (synchronously, not via the debounced handler).
-resize.__apply();
-resize();
+}
+
+/**
+ * Debounced window-resize handler. Mobile browsers fire 'resize'
+ * repeatedly as the address bar shows/hides; apply only once it settles.
+ */
+function onResize() {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(applySize, 120);
+}
+window.addEventListener('resize', onResize);
+// Match the backing store once on load.
+applySize();
 
 /**
  * Pre-rendered player body sprite. The player occupies a single tile and its
@@ -156,9 +181,10 @@ export const platSprites = [null]; // slot 0 unused; index = platform width
  * Converts a world y coordinate to a screen y coordinate.
  * Higher world y = higher on screen (smaller screen y).
  * @param {number} y - World y coordinate (in world units).
+ * @param {number} camY - Camera y in world units (pass the interpolated value when rendering between ticks).
  * @returns {number} Screen y coordinate in logical pixels.
  */
-export function toScreenY(y) { return CANVAS_H - (y - state.camera.y) * UNIT_PX; }
+export function toScreenY(y, camY) { return CANVAS_H - (y - camY) * UNIT_PX; }
 
 /**
  * Converts a world x coordinate to a screen x coordinate.

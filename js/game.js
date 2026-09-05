@@ -8,7 +8,7 @@ import { roll, widthRange, reachRange, randColor } from './dice.js';
 import { toScreenX, toScreenY } from './canvas.js';
 import {
   elCompletions, elAltitude, powerCells, elDeath, elHints,
-  elNameRow, elNameInput, elLeaderboard,
+  elNameRow, elLeaderboard,
 } from './dom.js';
 import { showGameOverScreen, resetSubmitFlag } from './leaderboard.js';
 import {
@@ -26,7 +26,9 @@ import {
  *   platforms: Array<{x: number, y: number, w: number, h: number,
  *                     ground: boolean, collected?: boolean}>,
  *   camera: {y: number, prevY: number} | null,
- *   bar: {slots: Array<Array<string|null>>, anims: Array, falling: Array} | null,
+ *   bar: {slots: Array<Array<string|null>>,
+ *         anims: Array<{row: number, col: number, t: number, prevT: number, color: string}>,
+ *         falling: Array<{x: number, y: number, prevY: number, w: number, color: string, t: number, prevT: number}>} | null,
  *   completions: number,
  *   maxAlt: number,
  *   alive: boolean,
@@ -52,6 +54,17 @@ export const state = {
 
 /** Last power level rendered to the DOM (avoids redundant updates). */
 let powerRendered = -1;
+/** Last completions value written to the HUD (avoids per-tick string builds). */
+let hudComp = -1;
+/** Last altitude value written to the HUD (avoids per-tick string builds). */
+let hudAlt = -1;
+/**
+ * Reusable per-column block-count buffer shared by platform generation.
+ * Zeroed at the start of each generation pass — keeps the 60Hz hot loop
+ * allocation-free (a fresh array per tick caused periodic GC pauses).
+ * @type {number[]}
+ */
+const colCount = new Array(BAR_SLOTS).fill(0);
 /** Jump input state on the previous tick (edge detection). */
 let jumpPressed = false;
 
@@ -81,9 +94,9 @@ export function init() {
   state.platforms.push({ x: 0, y: 0, w: MAP_W, h: PLAT_H, ground: true });
 
   // Generate chain from ground (ground spans full width, center at MAP_W/2).
-  // The bar is empty at birth, so colCount stays all-zeros; pass a reusable
-  // buffer to keep genNext's signature uniform without allocating.
-  const colCount = new Array(BAR_SLOTS).fill(0);
+  // The bar is empty at birth, so colCount stays all-zeros; the shared
+  // buffer is reused to keep the hot loop allocation-free.
+  colCount.fill(0);
   let prevX = 0, prevW = MAP_W, prevY = 0;
   for (let i = 0; i < BUFFER + 5; i++) {
     const r = genNext(prevX, prevW, prevY, colCount);
@@ -175,9 +188,9 @@ function getChainTip() {
 function regenPlatforms() {
   const bar = state.bar;
 
-  // Count blocks per column once and reuse it for every platform generated
-  // this pass (avoids a fresh Array + nested scan per platform).
-  const colCount = new Array(BAR_SLOTS).fill(0);
+  // Count blocks per column once and reuse the shared buffer for every
+  // platform generated this pass (zeroed here, no per-tick allocation).
+  colCount.fill(0);
   for (let col = 0; col < BAR_SLOTS; col++) {
     for (let row = 0; row < BAR_ROWS; row++) {
       if (bar.slots[row][col]) colCount[col]++;
@@ -223,7 +236,7 @@ function fillBar(px, pw, color) {
       for (let row = 0; row < BAR_ROWS; row++) {
         if (!bar.slots[row][col]) {
           bar.slots[row][col] = color;
-          bar.anims.push({ row, col, t: 1.0, color });
+          bar.anims.push({ row, col, t: 1.0, prevT: 1.0, color });
           break;
         }
       }
@@ -275,7 +288,7 @@ function clearCompleteRows() {
  * platform regeneration, bar animations, and HUD updates.
  */
 export function update() {
-  if (inputRestart() && document.activeElement !== elNameInput) { keys['KeyR'] = false; restart(); }
+  if (inputRestart()) { keys['KeyR'] = false; restart(); }
   if (!state.alive) return;
 
   const player = state.player;
@@ -366,25 +379,34 @@ export function update() {
   // Regen
   regenPlatforms();
 
-  // Bar slot animations
+  // Bar slot animations (prevT kept for render-side interpolation)
   for (let i = bar.anims.length - 1; i >= 0; i--) {
-    bar.anims[i].t -= 0.05;
-    if (bar.anims[i].t <= 0) bar.anims.splice(i, 1);
+    const a = bar.anims[i];
+    a.prevT = a.t;
+    a.t -= 0.05;
+    if (a.t <= 0) bar.anims.splice(i, 1);
   }
-  // Falling block animations
+  // Falling block animations (prevY/prevT kept for render-side interpolation)
   const barY = CANVAS_H - BAR_RESERVED + 8;
   for (let i = bar.falling.length - 1; i >= 0; i--) {
     const f = bar.falling[i];
+    f.prevY = f.y;
+    f.prevT = f.t;
     f.y += 12; // fall speed in px
     f.t -= 0.04;
     if (f.y >= barY || f.t <= 0) bar.falling.splice(i, 1);
   }
 
-  // HUD (only touch the DOM when the displayed value actually changes)
-  const compTxt = 'completions: ' + state.completions;
-  if (elCompletions.textContent !== compTxt) elCompletions.textContent = compTxt;
-  const altTxt = 'altitude: ' + Math.floor(state.maxAlt) + 'm';
-  if (elAltitude.textContent !== altTxt) elAltitude.textContent = altTxt;
+  // HUD (build the string and touch the DOM only when the value changes,
+  // so a steady state allocates nothing per tick)
+  if (hudComp !== state.completions) {
+    hudComp = state.completions;
+    elCompletions.textContent = 'completions: ' + hudComp;
+  }
+  if (hudAlt !== state.maxAlt) {
+    hudAlt = state.maxAlt;
+    elAltitude.textContent = 'altitude: ' + hudAlt + 'm';
+  }
 
   // Power bar cells (update only when the level changes)
   if (state.power !== powerRendered) {
@@ -405,10 +427,10 @@ function collectLastGround() {
     if (Math.abs(p.y - state.lastGroundY) < 0.5 && !p.ground && !p.collected) {
       // Spawn falling block animation from platform to bar
       const sx = toScreenX(p.x);
-      const sy = toScreenY(p.y);
+      const sy = toScreenY(p.y, state.camera.y);
       const sw = p.w * UNIT_PX;
       const color = randColor();
-      bar.falling.push({ x: sx, y: sy, w: sw, color, t: 1.0 });
+      bar.falling.push({ x: sx, y: sy, prevY: sy, w: sw, color, t: 1.0, prevT: 1.0 });
       // Remove platform
       state.platforms.splice(i, 1);
       fillBar(p.x, p.w, color);

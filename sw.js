@@ -7,7 +7,7 @@
  */
 
 /** Name of the versioned cache used for the app shell. */
-const CACHE = 'platform-fall-v17';
+const CACHE = 'platform-fall-v21';
 
 /** List of app shell resources precached during install. */
 const APP_SHELL = [

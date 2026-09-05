@@ -1,6 +1,7 @@
 // ─── Main: game loop + boot ─────────────────────────────────
-import { init, update, restart, state } from './game.js';
+import { init, update, restart } from './game.js';
 import { draw } from './render.js';
+import { reportFrameTime } from './canvas.js';
 import { pollGamepad } from './input.js';
 import { submitName } from './leaderboard.js';
 import { elRestartBtn, elTouchRstBtn, elNameInput, elSubmitName, elBoot } from './dom.js';
@@ -26,16 +27,18 @@ let accumulator = 0;
 
 /**
  * Main game loop (fixed timestep, 60fps simulation).
- * Accumulates frame time, runs update() in fixed steps, interpolates
- * player/camera one tick back for smooth rendering at any refresh rate,
- * then draws the frame.
+ * Accumulates frame time, runs update() in fixed steps, then draws the
+ * frame at the fractional tick position (accumulator / FIXED_DT). All
+ * interpolation happens inside draw() — the loop never mutates state.
  * @param {number} timestamp - Current frame timestamp in ms.
  * @returns {number|undefined} The next requestAnimationFrame handle, or undefined once the loop is running.
  */
 function loop(timestamp) {
   if (!lastTime) { lastTime = timestamp || performance.now(); return requestAnimationFrame(loop); }
-  let frameTime = (timestamp - lastTime) / 1000;
+  const rawFrameMs = timestamp - lastTime;
   lastTime = timestamp;
+  reportFrameTime(rawFrameMs);
+  let frameTime = rawFrameMs / 1000;
   // Clamp to avoid spiral of death
   if (frameTime > 0.1) frameTime = 0.1;
   accumulator += frameTime;
@@ -44,23 +47,12 @@ function loop(timestamp) {
     update();
     accumulator -= FIXED_DT;
   }
-  // Interpolate one tick back so rendering is smooth at any refresh rate
-  const alpha = state.alive ? accumulator / FIXED_DT : 1;
-  const trueCamY = state.camera.y, truePX = state.player.x, truePY = state.player.y;
-  if (alpha < 1) {
-    state.camera.y = state.camera.prevY + (trueCamY - state.camera.prevY) * alpha;
-    state.player.x = state.player.prevX + (truePX - state.player.prevX) * alpha;
-    state.player.y = state.player.prevY + (truePY - state.player.prevY) * alpha;
-  }
-  draw();
+  draw(accumulator / FIXED_DT);
   if (!booted) {
     booted = true;
     elBoot.classList.add('done');
     setTimeout(() => elBoot.remove(), 500);
   }
-  state.camera.y = trueCamY;
-  state.player.x = truePX;
-  state.player.y = truePY;
   requestAnimationFrame(loop);
 }
 

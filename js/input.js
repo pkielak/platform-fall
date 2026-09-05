@@ -1,17 +1,42 @@
 // ─── Input (keyboard, touch, gamepad) ───────────────────────
-import { elNameInput, elHints } from './dom.js';
+import { elHints } from './dom.js';
 
 /**
  * Keyboard state map, keyed by `KeyboardEvent.code`.
  * @type {Record<string, boolean>}
  */
 export const keys = {};
+
+/**
+ * Codes whose default browser action (page scroll) must be suppressed.
+ * A Set instead of an array literal in the handler: key auto-repeat fires
+ * this on every repeat while a key is held, so it must not allocate.
+ * @type {Set<string>}
+ */
+const PREVENT_CODES = new Set(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
 window.addEventListener('keydown', e => {
-  if (e.target === elNameInput) return;
+  // Game keys never fire while a text input has focus (e.target is the
+  // focused element, so this covers the name field and any future inputs
+  // without tracking specific elements). tagName check rather than
+  // instanceof: no dependency on the class global existing in scope.
+  if (e.target && e.target.tagName === 'INPUT') return;
   keys[e.code] = true;
-  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  if (PREVENT_CODES.has(e.code)) e.preventDefault();
 });
 window.addEventListener('keyup',   e => { keys[e.code] = false; });
+// If the window loses focus while a key is held, the keyup is lost and the
+// key would stick (the player runs forever). Clear all keys on blur.
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+// Buttons keep focus after a click, and a later Space/Enter would re-activate
+// the focused button (e.g. Space-to-jump re-clicking Restart). Drop focus
+// after every button click so game keys behave consistently.
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  if (t && t.tagName) { // element (not document/window)
+    const b = t.closest('button');
+    if (b) b.blur();
+  }
+});
 
 /** Touch button state (mobile on-screen controls). */
 const touchState = { left: false, right: false, jump: false };

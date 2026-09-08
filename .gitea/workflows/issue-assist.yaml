@@ -10,6 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug
+        run: |
+          cat /root/.pi/agent/settings.json
+          cat /root/.pi/agent/models.json
+          pi --list-models
+
       - name: Respond
         run: |
           PROMPT=$(echo "${{ gitea.event.comment.body }}" | sed 's/@pi[[:space:]]*//')

@@ -1,0 +1,25 @@
+name: Issue Assist
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  assist:
+    runs-on: pi-sandbox
+    if: contains(github.event.comment.body, '@pi')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Respond to issue
+        run: |
+          PROMPT="${{ github.event.comment.body }}"
+          # Strip the @pi trigger
+          PROMPT=$(echo "$PROMPT" | sed 's/@pi[[:space:]]*//')
+
+          pi -p "You are assisting with issue #${{ github.event.issue.number }}:
+          Title: ${{ github.event.issue.title }}
+          Body: ${{ github.event.issue.body }}
+
+          User asked: $PROMPT
+
+          Help them. If it's a bug, identify likely cause. If it's a question, answer it. If it's a command, do it. Reference specific files/lines where relevant."

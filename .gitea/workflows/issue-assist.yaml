@@ -26,4 +26,4 @@ jobs:
 
           User asked: $PROMPT
 
-          Help them concisely. If it's a command, do it. Reference specific files and line numbers where relevant."
+          Help them concisely. If it's a command, do it. If you ended work with new commit, push the work and create a PR if it dont exist yet. Report back in the comment. Reference specific files and line numbers where relevant."

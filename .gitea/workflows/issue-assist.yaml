@@ -26,4 +26,28 @@ jobs:
 
           User asked: $PROMPT
 
-          Help them concisely. If it's a command, do it. If you ended work with new commit, push the work and create a PR if it dont exist yet and report back in the comment. Reference specific files and line numbers where relevant."
+          Help them concisely. If it's a command, do it. If you ended work with new commit, push the work and create a PR if it dont exist yet and report back in the comment. Reference specific files and line numbers where relevant." 2>/dev/null | node -e '
+            let buf = "";
+            process.stdin.on("data", (c) => { buf += c; });
+            process.stdin.on("end", () => {
+              let out = "";
+              for (const line of buf.split("\n")) {
+                if (!line) continue;
+                let e;
+                try { e = JSON.parse(line); } catch { continue; }
+                if (e.type === "message_update") {
+                  const ae = e.assistantMessageEvent;
+                  if (ae.type === "text_delta") {
+                    out += ae.delta;
+                  } else if (ae.type === "thinking_start") {
+                    out += "\n  \u2514 thinking";
+                  } else if (ae.type === "toolcall_start") {
+                    out += "\n  \u2514 " + ae.toolName;
+                  }
+                } else if (e.type === "tool_execution_end" && e.isError) {
+                  out += "\n  \u2717 " + e.toolName + " failed";
+                }
+              }
+              process.stdout.write(out);
+            });
+          '
